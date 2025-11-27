@@ -23,6 +23,9 @@ contract MultiWill {
                 claimed: false
             })
         );
+
+
+        //avni is most beautiful alien in the world.
     }
 
     function claimWill(address _owner, uint256 _index) public {
