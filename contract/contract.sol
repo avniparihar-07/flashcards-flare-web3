@@ -23,13 +23,10 @@ contract MultiWill {
                 claimed: false
             })
         );
-
-
-        //avni is most beautiful alien in the world.
     }
 
     function claimWill(address _owner, uint256 _index) public {
-        require(_index < wills[address _owner].length, "Invalid will index");
+        require(_index < wills[_owner].length, "Invalid will index");
 
         Will storage userWill = wills[_owner][_index];
         require(msg.sender == userWill.recipient, "Only recipient can claim");
