@@ -1,58 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract MultiWill {
+contract Flashcards {
 
-    struct Will {
-        address recipient;
-        uint256 amount;
-        bool claimed;
+    // Each flashcard has a question and an answer
+    struct Flashcard {
+        string question;
+        string answer;
     }
 
-    // Each owner can have multiple wills
-    mapping(address => Will[]) public wills;
+    // Array to store all flashcards
+    Flashcard[] private flashcards;
 
-    function createWill(address _recipient) public payable {
-        require(_recipient != address(0), "Invalid recipient address");
-        require(msg.value > 0, "Amount must be greater than zero");
-
-        wills[msg.sender].push(
-            Will({
-                recipient: _recipient,
-                amount: msg.value,
-                claimed: false
-            })
-        );
+    // Add a new flashcard
+    function addFlashcard(string memory _question, string memory _answer) public {
+        flashcards.push(Flashcard({
+            question: _question,
+            answer: _answer
+        }));
     }
 
-    function claimWill(address _owner, uint256 _index) public {
-        require(_index < wills[_owner].length, "Invalid will index");
-
-        Will storage userWill = wills[_owner][_index];
-        require(msg.sender == userWill.recipient, "Only recipient can claim");
-        require(!userWill.claimed, "Already claimed");
-        require(userWill.amount > 0, "No funds to claim");
-
-        userWill.claimed = true;
-        payable(userWill.recipient).transfer(userWill.amount);
+    // Get a flashcard by index
+    function getFlashcard(uint256 index) public view returns (string memory, string memory) {
+        require(index < flashcards.length, "Flashcard does not exist");
+        Flashcard memory card = flashcards[index];
+        return (card.question, card.answer);
     }
 
-    function getMyWillsCount() public view returns (uint256) {
-        return wills[msg.sender].length;
-    }
-
-    function getWill(address _owner, uint256 _index)
-        public
-        view
-        returns (address recipient, uint256 amount, bool claimed)
-    {
-        require(_index < wills[_owner].length, "Invalid will index");
-
-        Will memory userWill = wills[_owner][_index];
-        return (userWill.recipient, userWill.amount, userWill.claimed);
-    }
-
-    function getContractBalance() public view returns (uint256) {
-        return address(this).balance;
+    // Get total number of flashcards
+    function totalFlashcards() public view returns (uint256) {
+        return flashcards.length;
     }
 }

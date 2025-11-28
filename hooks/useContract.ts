@@ -1,120 +1,72 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
-import { parseEther, formatEther } from "viem"
+import {
+  useAccount,
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt
+} from "wagmi"
 import { contractABI, contractAddress } from "@/lib/contract"
 
-export interface WillData {
-  recipient: string
-  amount: string
-  claimed: boolean
-}
-
-export interface ContractData {
-  contractBalance: string
-  myWillsCount: number
-  wills: WillData[]
-}
-
-export interface ContractState {
-  isLoading: boolean
-  isPending: boolean
-  isConfirming: boolean
-  isConfirmed: boolean
-  hash: `0x${string}` | undefined
-  error: Error | null
-}
-
-export interface ContractActions {
-  createWill: (recipient: string, amount: string) => Promise<void>
-  claimWill: (owner: string, index: number) => Promise<void>
-}
-
-export const useWillContract = () => {
+export const useFlashcardContract = () => {
   const { address } = useAccount()
   const [isLoading, setIsLoading] = useState(false)
-  const [wills, setWills] = useState<WillData[]>([])
 
-  const { data: contractBalance, refetch: refetchBalance } = useReadContract({
+  // READ: totalCards
+  const {
+    data: totalCards,
+    refetch: refetchTotal
+  } = useReadContract({
     address: contractAddress,
     abi: contractABI,
-    functionName: "getContractBalance",
+    functionName: "totalCards",
   })
 
-  const { data: myWillsCount, refetch: refetchWillsCount } = useReadContract({
-    address: contractAddress,
-    abi: contractABI,
-    functionName: "getMyWillsCount",
-    query: {
-      enabled: !!address,
-    },
-  })
+  // WRITE: addCard
+  const {
+    data: hash,
+    writeContractAsync,
+    isPending,
+    error
+  } = useWriteContract()
 
-  const { writeContractAsync, data: hash, error, isPending } = useWriteContract()
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  // WAIT FOR CONFIRMATION
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed
+  } = useWaitForTransactionReceipt({
     hash,
   })
 
+  // Refresh totalCards after confirmation
   useEffect(() => {
     if (isConfirmed) {
-      refetchBalance()
-      refetchWillsCount()
+      refetchTotal()
     }
-  }, [isConfirmed, refetchBalance, refetchWillsCount])
+  }, [isConfirmed, refetchTotal])
 
-  const createWill = async (recipient: string, amount: string) => {
-    if (!recipient || !amount) return
-
+  // Write function
+  const addCard = async (question: string, answer: string) => {
+    if (!question || !answer) return
     try {
       setIsLoading(true)
       await writeContractAsync({
         address: contractAddress,
         abi: contractABI,
-        functionName: "createWill",
-        args: [recipient as `0x${string}`],
-        value: parseEther(amount),
+        functionName: "addCard",
+        args: [question, answer],
       })
     } catch (err) {
-      console.error("Error creating will:", err)
+      console.error("Error adding card:", err)
       throw err
     } finally {
       setIsLoading(false)
     }
   }
 
-  const claimWill = async (owner: string, index: number) => {
-    if (!owner && !address) return
-
-    try {
-      setIsLoading(true)
-      await writeContractAsync({
-        address: contractAddress,
-        abi: contractABI,
-        functionName: "claimWill",
-        args: [(owner || address) as `0x${string}` , BigInt(index)],
-      })
-    } catch (err) {
-      console.error("Error claiming will:", err)
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const data: ContractData = {
-    contractBalance: contractBalance ? formatEther(contractBalance as bigint) : "0",
-    myWillsCount: myWillsCount ? Number(myWillsCount as bigint) : 0,
-    wills,
-  }
-
-  const actions: ContractActions = {
-    createWill,
-    claimWill,
-  }
-
-  const state: ContractState = {
+  // UI State
+  const state = {
     isLoading: isLoading || isPending || isConfirming,
     isPending,
     isConfirming,
@@ -124,8 +76,12 @@ export const useWillContract = () => {
   }
 
   return {
-    data,
-    actions,
+    data: {
+      totalCards: totalCards ? Number(totalCards as bigint) : 0,
+    },
+    actions: {
+      addCard,
+    },
     state,
   }
 }
